@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monthly Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --panel: #151515;
+      --panel-2: #1b1b1b;
+      --text: #f3f0e8;
+      --muted: #9d9a92;
+      --line: #2b2b2b;
+      --accent: #c8a96b;
+      --success: #d8e3cf;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Arial, sans-serif;
+    }
+
+    .shell {
+      width: min(1500px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(32px, 5vw, 58px);
+      font-weight: 500;
+    }
+
+    .month-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 13px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    button:hover { border-color: var(--accent); }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .card-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 24px;
+    }
+
+    .bar {
+      height: 5px;
+      background: #292929;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width .2s ease;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      min-width: 1130px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      height: 48px;
+      padding: 0;
+      font-size: 13px;
+    }
+
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
+
+    th {
+      color: var(--muted);
+      font-weight: 500;
+      background: #121212;
+    }
+
+    .metric {
+      width: 150px;
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: var(--panel);
+      text-align: left;
+      padding: 0 14px;
+    }
+
+    th.metric {
+      background: #121212;
+      z-index: 4;
+    }
+
+    .target, .total {
+      width: 72px;
+    }
+
+    .day {
+      width: 34px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .12s ease;
+    }
+
+    .day:hover { background: var(--panel-2); }
+
+    .day.done {
+      background: var(--success);
+      color: #111;
+      font-weight: 700;
+    }
+
+    .day.number {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .today {
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      header { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">Personal operating system</div>
+        <h1 id="monthTitle"></h1>
+      </div>
+
+      <div class="month-controls">
+        <button id="prevMonth" aria-label="Previous month">←</button>
+        <button id="todayBtn">This month</button>
+        <button id="nextMonth" aria-label="Next month">→</button>
+      </div>
+    </header>
+
+    <section class="summary" id="summary"></section>
+
+    <div class="table-wrap">
+      <table id="dashboardTable"></table>
+    </div>
+
+    <div class="footer">
+      <div class="legend">
+        <span>Click habits to tick them off.</span>
+        <span>Click applications to add 1.</span>
+        <span>Right-click applications to subtract 1.</span>
+      </div>
+      <button id="resetMonth">Reset month</button>
+    </div>
+  </main>
+
+  <script>
+    const metrics = [
+      { id: "water", name: "Water · 3L", type: "check", target: 31 },
+      { id: "food", name: "Food · On plan", type: "check", target: 27 },
+      { id: "gym", name: "Gym / movement", type: "check", target: 20 },
+      { id: "applications", name: "Job applications", type: "number", target: 30 },
+      { id: "business", name: "On Retainer · 1h", type: "check", target: 24 }
+    ];
+
+    let current = new Date();
+    current.setDate(1);
+
+    const monthTitle = document.getElementById("monthTitle");
+    const table = document.getElementById("dashboardTable");
+    const summary = document.getElementById("summary");
+
+    function monthKey() {
+      return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function daysInMonth() {
+      return new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+    }
+
+    function getData() {
+      try {
+        return JSON.parse(localStorage.getItem(`monthly-dashboard-${monthKey()}`)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveData(data) {
+      localStorage.setItem(`monthly-dashboard-${monthKey()}`, JSON.stringify(data));
+    }
+
+    function totalFor(metric, data) {
+      const values = data[metric.id] || {};
+      return Object.values(values).reduce((sum, value) => {
+        return sum + (metric.type === "check" ? (value ? 1 : 0) : Number(value || 0));
+      }, 0);
+    }
+
+    function completion(metric, total) {
+      return Math.min(100, Math.round((total / metric.target) * 100));
+    }
+
+    function renderSummary(data) {
+      summary.innerHTML = "";
+
+      let achieved = 0;
+      let possible = 0;
+
+      metrics.forEach(metric => {
+        const total = totalFor(metric, data);
+        const percent = completion(metric, total);
+        achieved += Math.min(total, metric.target);
+        possible += metric.target;
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-label">${metric.name}</div>
+          <div class="card-value">${total}<span style="color:var(--muted);font-size:15px"> / ${metric.target}</span></div>
+          <div class="bar"><span style="width:${percent}%"></span></div>
+        `;
+        summary.appendChild(card);
+      });
+
+      const overall = Math.round((achieved / possible) * 100);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-label">Overall</div>
+        <div class="card-value">${overall}%</div>
+        <div class="bar"><span style="width:${overall}%"></span></div>
+      `;
+      summary.appendChild(card);
+    }
+
+    function render() {
+      const data = getData();
+      const dayCount = daysInMonth();
+      const now = new Date();
+      const isCurrentMonth =
+        now.getFullYear() === current.getFullYear() &&
+        now.getMonth() === current.getMonth();
+
+      monthTitle.textContent = current.toLocaleDateString("en-AU", {
+        month: "long",
+        year: "numeric"
+      });
+
+      let html = `<thead><tr>
+        <th class="metric">Metric</th>
+        <th class="target">Goal</th>`;
+
+      for (let day = 1; day <= dayCount; day++) {
+        const todayClass = isCurrentMonth && day === now.getDate() ? "today" : "";
+        html += `<th class="${todayClass}">${day}</th>`;
+      }
+
+      html += `<th class="total">Total</th></tr></thead><tbody>`;
+
+      metrics.forEach(metric => {
+        const values = data[metric.id] || {};
+        const total = totalFor(metric, data);
+
+        html += `<tr>
+          <td class="metric">${metric.name}</td>
+          <td class="target">${metric.target}</td>`;
+
+        for (let day = 1; day <= dayCount; day++) {
+          const value = values[day];
+          const todayClass = isCurrentMonth && day === now.getDate() ? "today" : "";
+
+          if (metric.type === "check") {
+            html += `<td class="day ${value ? "done" : ""} ${todayClass}"
+              data-metric="${metric.id}" data-day="${day}">
+              ${value ? "✓" : ""}
+            </td>`;
+          } else {
+            html += `<td class="day ${value ? "number" : ""} ${todayClass}"
+              data-metric="${metric.id}" data-day="${day}">
+              ${value || ""}
+            </td>`;
+          }
+        }
+
+        html += `<td class="total">${total}</td></tr>`;
+      });
+
+      html += `</tbody>`;
+      table.innerHTML = html;
+
+      table.querySelectorAll(".day").forEach(cell => {
+        cell.addEventListener("click", () => updateCell(cell, 1));
+        cell.addEventListener("contextmenu", event => {
+          event.preventDefault();
+          updateCell(cell, -1);
+        });
+      });
+
+      renderSummary(data);
+    }
+
+    function updateCell(cell, direction) {
+      const metric = metrics.find(item => item.id === cell.dataset.metric);
+      const day = cell.dataset.day;
+      const data = getData();
+
+      data[metric.id] = data[metric.id] || {};
+
+      if (metric.type === "check") {
+        data[metric.id][day] = !data[metric.id][day];
+      } else {
+        const currentValue = Number(data[metric.id][day] || 0);
+        data[metric.id][day] = Math.max(0, currentValue + direction);
+        if (data[metric.id][day] === 0) delete data[metric.id][day];
+      }
+
+      saveData(data);
+      render();
+    }
+
+    document.getElementById("prevMonth").addEventListener("click", () => {
+      current.setMonth(current.getMonth() - 1);
+      render();
+    });
+
+    document.getElementById("nextMonth").addEventListener("click", () => {
+      current.setMonth(current.getMonth() + 1);
+      render();
+    });
+
+    document.getElementById("todayBtn").addEventListener("click", () => {
+      current = new Date();
+      current.setDate(1);
+      render();
+    });
+
+    document.getElementById("resetMonth").addEventListener("click", () => {
+      const confirmed = confirm(`Reset all data for ${monthTitle.textContent}?`);
+      if (!confirmed) return;
+      localStorage.removeItem(`monthly-dashboard-${monthKey()}`);
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
